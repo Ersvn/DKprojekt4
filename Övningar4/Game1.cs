@@ -1,4 +1,4 @@
-﻿using Microsoft.VisualBasic;
+using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -19,15 +19,18 @@ namespace Övningar4
         SpriteFont font;
         bool start;
         List<string> strings = new List<string>();
-        Ball[,] balls;
+        //Ball[,] balls;
         Ball ball;
-        Tile[,] tiles;
+        Player player;
+        static Tile[,] tiles;
+        Texture2D texture;
         Texture2D ballTex;
         Texture2D wallTileTex;
         Texture2D floorTileTex;
         Vector2 position;
-
-        enum GameState { LoadingScreen, StartScreen, PlayState, GameOver } GameState gState = GameState.LoadingScreen;
+        KeyboardState keyState;
+        static int tileSize;
+        enum GameState { LoadingScreen, StartScreen, PlayState, GameOver, } GameState gState = GameState.LoadingScreen;
         
 
         public Game1()
@@ -35,6 +38,7 @@ namespace Övningar4
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
+            tileSize = 50;
 
         }
         protected override void Initialize()
@@ -51,8 +55,9 @@ namespace Övningar4
             wallTileTex = Content.Load<Texture2D>("walltile");
             floorTileTex = Content.Load<Texture2D>("floortile");
             ballTex = Content.Load<Texture2D>("ball");
+            texture = Content.Load<Texture2D>("ball");
 
-            List<string> strings = new List<string>();
+          
             StreamReader sr = new StreamReader("map.txt");
 
             //StreamReader sr = new StreamReader(@"MyText.txt");
@@ -63,6 +68,7 @@ namespace Övningar4
                 strings.Add(sr.ReadLine());
             }
             sr.Close();
+
             tiles = new Tile[strings[0].Length, strings.Count];
 
             for (int i = 0; i < tiles.GetLength(0); i++)
@@ -84,24 +90,19 @@ namespace Övningar4
                     else if (strings[j][i] == 'b')
                     {
                         tiles[i, j] = new Tile(floorTileTex, new Vector2(floorTileTex.Width * i, floorTileTex.Height * j), false);
-                        ball = new Ball(ballTex, new Vector2(floorTileTex.Width * i, floorTileTex.Height * j));
+                        //ball = new Ball(ballTex, new Vector2(floorTileTex.Width * i, floorTileTex.Height * j));
+                        player = new Player(texture, new Vector2(texture.Width * i, texture.Height * j));
                     }
                 }
             }
         }
         protected override void Update(GameTime gameTime)
         {
-            if (start)
-            {
-                foreach (Ball b in balls)
-                {
-                    b.Update(gameTime);
-                }
-            }
-            else if (Keyboard.GetState().IsKeyDown(Keys.Enter))
-            {
-                start = true;
-            }
+            keyState = Keyboard.GetState();
+
+            
+            //ball.Update(gameTime);
+            player.Update(gameTime);
 
             base.Update(gameTime);
         }
@@ -118,24 +119,58 @@ namespace Övningar4
             {
                 for(int j = 0; j < strings[i].Length; j++)
                 {
+                    //if (strings[i][j] == 'w')
+                    //{
+                    //    spriteBatch.Draw(wallTileTex, new Vector2(tileSize * i, tileSize * j), Color.White);
+                    //}
+
+                    //else if (strings[i][j] == '-')
+                    //{
+                    //    spriteBatch.Draw(floorTileTex, new Vector2(tileSize * i, tileSize * j), Color.White);
+                    //}
+                    //else if (strings[i][j] == 'b')
+                    //{
+                    //    spriteBatch.Draw(floorTileTex, new Vector2(tileSize * i, tileSize * j), Color.White);
+                    //    ball.Draw(spriteBatch);
+                    //}
+
                     if (strings[i][j] == 'w')
                     {
-                        spriteBatch.Draw(wallTileTex, new Vector2(50 * i, 50 * j), Color.White);
+                        spriteBatch.Draw(wallTileTex, new Vector2(tileSize * j, tileSize * i), Color.White);
                     }
 
                     else if (strings[i][j] == '-')
                     {
-                        spriteBatch.Draw(floorTileTex, new Vector2(50 * i, 50 * j), Color.White);
+                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.White);
                     }
                     else if (strings[i][j] == 'b')
                     {
-                        spriteBatch.Draw(ballTex, new Vector2(50 * i, 50 * j), Color.White);
+                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.White);
+                        //ball.Draw(spriteBatch);
                     }
                 }
             }
+            player.Draw(spriteBatch);
+            //ball.Draw(spriteBatch);
+           /* for (int i = 0; i < strings.Count; i++)
+            {
+                for (int j = 0; j < strings[i].Length; j++)
+                {
+                    
+                    if (strings[i][j] == 'b')
+                    {
+                        ball.Draw(spriteBatch);
+                    }
+                }
+            }*/
+
             //ball.Draw(spriteBatch);
             spriteBatch.End();
             base.Draw(gameTime);
+        }
+        public static bool GetTileAtPosition(Vector2 vec)
+        {
+            return tiles[(int)vec.X / tileSize, (int)vec.Y / tileSize].wall;
         }
     }
 }
