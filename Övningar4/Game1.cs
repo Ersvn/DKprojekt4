@@ -3,10 +3,11 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SharpDX.Direct3D9;
+using SharpDX.MediaFoundation;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using static System.Net.Mime.MediaTypeNames;
+
 
 
 namespace Övningar4
@@ -15,30 +16,57 @@ namespace Övningar4
     {
         private GraphicsDeviceManager graphics;
         private SpriteBatch spriteBatch;
+        KeyboardState keyState;
         private string text;
         SpriteFont font;
-        bool start;
-        List<string> strings = new List<string>();
-        //Ball[,] balls;
+        List<string> strings = new List<string>();        
         Ball ball;
         Player player;
         static Tile[,] tiles;
-        Texture2D texture;
+        Princess princess;
+        Texture2D princessTex;
+        //Enemies
+        Enemy enemy;
+        public List<Enemy> enemyList;
+        Texture2D enemyTex;
+        // Texture2D playerTex1;
+        // Texture2D playerTex2;
+        Texture2D runningTex;
         Texture2D ballTex;
+        Texture2D runTexture;
         Texture2D wallTileTex;
         Texture2D floorTileTex;
+        Texture2D bridgeTex;
+        Texture2D bridgeLadderTex;
+        Texture2D ladderTex;
         Vector2 position;
-        KeyboardState keyState;
+        Vector2 velocity;
         static int tileSize;
-        enum GameState { LoadingScreen, StartScreen, PlayState, GameOver, } GameState gState = GameState.LoadingScreen;
+        //int timer;
+        Texture2D fireballTex;
+        public static bool isVisible;
+        public float speed;
+
+        /*
+         * Gör om mappen till gridsystem och bestäm vektor.
+         */
+
+
+        enum GameState { Input, Start, Play, GameOver, } GameState gState;
         
 
         public Game1()
         {
             graphics = new GraphicsDeviceManager(this);
+            graphics.PreferredBackBufferWidth = 1200;
+            graphics.PreferredBackBufferHeight = 800;
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
-            tileSize = 50;
+            graphics.IsFullScreen = false;
+            tileSize = 40;
+            this.Window.Title = "Donkey Kong";
+            
+            isVisible = false;
 
         }
         protected override void Initialize()
@@ -54,13 +82,17 @@ namespace Övningar4
             font = Content.Load<SpriteFont>(@"Font");
             wallTileTex = Content.Load<Texture2D>("walltile");
             floorTileTex = Content.Load<Texture2D>("floortile");
-            ballTex = Content.Load<Texture2D>("ball");
-            texture = Content.Load<Texture2D>("ball");
-
-          
+            ballTex = Content.Load<Texture2D>("SuperMarioFront");
+            runTexture = Content.Load<Texture2D>("SuperMarioBack");
+            runningTex = Content.Load<Texture2D>("mario-pauline");
             StreamReader sr = new StreamReader("map.txt");
+            bridgeTex = Content.Load<Texture2D>("bridge");
+            ladderTex = Content.Load <Texture2D>("ladder");
+            enemyTex = Content.Load<Texture2D>("spider1");
+            enemyList = new List<Enemy>();
+            princessTex = Content.Load<Texture2D>("pauline");
+            //enemy = new Enemy(Content.Load < Texture2D > ("enemy"), new Vector2(400, 400), 150);
 
-            //StreamReader sr = new StreamReader(@"MyText.txt");
             text = sr.ReadLine();
 
             while (!sr.EndOfStream)
@@ -73,104 +105,170 @@ namespace Övningar4
 
             for (int i = 0; i < tiles.GetLength(0); i++)
             {
-
                 for (int j = 0; j < tiles.GetLength(1); j++)
                 {
-
                     if (strings[j][i] == 'w')
                     {
-                        tiles[i, j] = new Tile(wallTileTex, new Vector2(wallTileTex.Width * i, wallTileTex.Height * j), true);
+                        tiles[i, j] = new Tile(wallTileTex, new Vector2(tileSize * j, tileSize * i), true);
                     }
-
-                    else if (strings[j][i] == '-')
+                    if (strings[j][i] == '-')
                     {
-                        tiles[i, j] = new Tile(floorTileTex, new Vector2(floorTileTex.Width * i, floorTileTex.Height * j), false);
+                        tiles[i, j] = new Tile(floorTileTex, new Vector2(tileSize * j, tileSize * i), true);
                     }
-
-                    else if (strings[j][i] == 'b')
+                    if (strings[j][i] == '+')
                     {
-                        tiles[i, j] = new Tile(floorTileTex, new Vector2(floorTileTex.Width * i, floorTileTex.Height * j), false);
-                        //ball = new Ball(ballTex, new Vector2(floorTileTex.Width * i, floorTileTex.Height * j));
-                        player = new Player(texture, new Vector2(texture.Width * i, texture.Height * j));
+                        tiles[i, j] = new Tile(floorTileTex, new Vector2(tileSize * j, tileSize * i), false);
                     }
+                    if (strings[j][i] == 'l')
+                    {
+                        tiles[i, j] = new Tile(ladderTex, new Vector2(tileSize * j, tileSize * i), false);
+                    }
+                    if (strings[j][i] == 'r')
+                    {
+                        tiles[i, j] = new Tile(bridgeTex, new Vector2(tileSize * j, tileSize * i), true);
+                    }
+                    if (strings[j][i] == 'b')
+                    {
+                        tiles[i, j] = new Tile(floorTileTex, new  Vector2(tileSize * j, tileSize * i), false);
+                        ball = new Ball(ballTex, runTexture, new Vector2(tileSize * i, tileSize * j));
+                    }
+                    if (strings[j][i] == 'e')
+                    {
+                        tiles[i, j] = new Tile(floorTileTex, new Vector2(tileSize * j, tileSize * i), false);
+                        
+                        enemy = new Enemy(enemyTex, new Vector2(tileSize * i, tileSize * j));
+                        //enemy = new Enemy((enemyTex, position, velocity), false);
+                    }
+                    
                 }
             }
         }
         protected override void Update(GameTime gameTime)
         {
-            keyState = Keyboard.GetState();
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape)) Exit();
 
-            
-            //ball.Update(gameTime);
-            player.Update(gameTime);
+            keyState = Keyboard.GetState();
+            switch (gState)
+            {
+                case GameState.Input:
+                    if (keyState.IsKeyDown(Keys.Enter))
+                    {
+                        gState = GameState.Play;
+                    }
+                    break;
+
+                case GameState.Play:
+                    //timer--;
+                    {
+                        ball.Update(gameTime);
+                        foreach (Enemy e in enemyList)
+                        {
+                            e.Update(gameTime);
+                        }
+                    }
+
+                    break;
+                case GameState.GameOver:
+                    {
+                        //.
+                    }
+                    break;
+            }            
 
             base.Update(gameTime);
         }
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.Black);
 
             spriteBatch.Begin();
 
-            spriteBatch.DrawString(font, text, new Vector2(100, 100), Color.Black);
-            
             for (int i = 0; i < strings.Count; i++)
             {
                 for(int j = 0; j < strings[i].Length; j++)
                 {
-                    //if (strings[i][j] == 'w')
-                    //{
-                    //    spriteBatch.Draw(wallTileTex, new Vector2(tileSize * i, tileSize * j), Color.White);
-                    //}
-
-                    //else if (strings[i][j] == '-')
-                    //{
-                    //    spriteBatch.Draw(floorTileTex, new Vector2(tileSize * i, tileSize * j), Color.White);
-                    //}
-                    //else if (strings[i][j] == 'b')
-                    //{
-                    //    spriteBatch.Draw(floorTileTex, new Vector2(tileSize * i, tileSize * j), Color.White);
-                    //    ball.Draw(spriteBatch);
-                    //}
-
                     if (strings[i][j] == 'w')
                     {
-                        spriteBatch.Draw(wallTileTex, new Vector2(tileSize * j, tileSize * i), Color.White);
+                        spriteBatch.Draw(wallTileTex, new Vector2(tileSize * j, tileSize * i), Color.DarkViolet);
                     }
 
                     else if (strings[i][j] == '-')
                     {
-                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.White);
+                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.DarkViolet);
                     }
+
+                    else if (strings[i][j] == '+')
+                    {
+                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.DarkViolet);
+                    }
+                    else if (strings[i][j] == 'r')
+                    {
+                        spriteBatch.Draw(bridgeTex, new Vector2(tileSize * j, tileSize * i), Color.BlueViolet);
+                    }
+
                     else if (strings[i][j] == 'b')
                     {
-                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.White);
-                        //ball.Draw(spriteBatch);
+                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.DarkViolet);
                     }
-                }
-            }
-            player.Draw(spriteBatch);
-            //ball.Draw(spriteBatch);
-           /* for (int i = 0; i < strings.Count; i++)
-            {
-                for (int j = 0; j < strings[i].Length; j++)
-                {
-                    
-                    if (strings[i][j] == 'b')
+                    else if (strings[i][j] == 'l')
                     {
-                        ball.Draw(spriteBatch);
+                        spriteBatch.Draw(ladderTex, new Vector2(tileSize * j, tileSize * i), Color.YellowGreen);
                     }
-                }
-            }*/
+                    else if (strings[i][j] == 'e')
+                    {
+                        
+                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.DarkViolet);
+                        //spriteBatch.Draw(enemyTex, new Vector2(tileSize * j, tileSize * i), Color.Red);
+                        enemy.Draw(spriteBatch);
+                    }
+                    else if (strings[i][j] == 'p')
+                    {
+                        spriteBatch.Draw(floorTileTex, new Vector2(tileSize * j, tileSize * i), Color.DarkViolet);
+                        spriteBatch.Draw(princessTex, new Vector2(tileSize * j, tileSize * i), Color.White);
+                    }
+                } 
+            }
 
-            //ball.Draw(spriteBatch);
+            //for (int i = 0; i < strings.Count; i++)
+            //{
+            //    for (int j = 0; j < strings[i].Length; j++)
+            //    {
+            //        if (strings[i][j] == 'e')
+            //        {
+            //            enemy.Draw(spriteBatch);
+            //        }
+            //    }
+            //}
+            
+            //enemy.Draw(spriteBatch);
+            ball.Draw(spriteBatch);
             spriteBatch.End();
+
             base.Draw(gameTime);
         }
         public static bool GetTileAtPosition(Vector2 vec)
         {
             return tiles[(int)vec.X / tileSize, (int)vec.Y / tileSize].wall;
         }
+        //public void UpdateEnemy()
+        //{
+        //    foreach (Enemy e in enemyList)
+        //    {
+        //        e.position.X = e.position.X - e.speed;
+
+        //        if (e.position.X <= 1200)
+        //            e.isVisible = false;
+        //    }
+        //    for (int i = 0; i < enemyList.Count; i++)
+        //    {
+        //        if (!enemyList[i].isVisible)
+        //        {
+        //            enemyList.RemoveAt(i);
+        //            i--;
+        //        }
+        //    }
+
+        //}
     }
 }
