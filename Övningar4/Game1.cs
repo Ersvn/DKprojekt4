@@ -20,7 +20,7 @@ namespace Övningar4
         private string text;
         SpriteFont font;
         List<string> strings = new List<string>();        
-        Ball ball;
+        
         Player player;
         static Tile[,] tiles;
         Princess princess;
@@ -46,7 +46,7 @@ namespace Övningar4
         Texture2D fireballTex;
         public static bool isVisible;
         public float speed;
-
+        int lives;
         /*
          * Gör om mappen till gridsystem och bestäm vektor.
          */
@@ -65,7 +65,7 @@ namespace Övningar4
             graphics.IsFullScreen = false;
             tileSize = 40;
             this.Window.Title = "Donkey Kong";
-            
+            lives = 5;
             isVisible = false;
 
         }
@@ -84,15 +84,15 @@ namespace Övningar4
             floorTileTex = Content.Load<Texture2D>("floortile");
             ballTex = Content.Load<Texture2D>("SuperMarioFront");
             runTexture = Content.Load<Texture2D>("SuperMarioBack");
-            runningTex = Content.Load<Texture2D>("mario-pauline");
+           // runningTex = Content.Load<Texture2D>("mario-pauline");
             StreamReader sr = new StreamReader("map.txt");
             bridgeTex = Content.Load<Texture2D>("bridge");
             ladderTex = Content.Load <Texture2D>("ladder");
-            enemyTex = Content.Load<Texture2D>("spider1");
+            enemyTex = Content.Load<Texture2D>("enemy");
             enemyList = new List<Enemy>();
             princessTex = Content.Load<Texture2D>("pauline");
             //enemy = new Enemy(Content.Load < Texture2D > ("enemy"), new Vector2(400, 400), 150);
-
+            
             text = sr.ReadLine();
 
             while (!sr.EndOfStream)
@@ -122,7 +122,7 @@ namespace Övningar4
                     if (strings[j][i] == 'l')
                     {
                         tiles[i, j] = new Tile(ladderTex, new Vector2(tileSize * j, tileSize * i), false);
-                    }
+                    }   
                     if (strings[j][i] == 'r')
                     {
                         tiles[i, j] = new Tile(bridgeTex, new Vector2(tileSize * j, tileSize * i), true);
@@ -130,16 +130,20 @@ namespace Övningar4
                     if (strings[j][i] == 'b')
                     {
                         tiles[i, j] = new Tile(floorTileTex, new  Vector2(tileSize * j, tileSize * i), false);
-                        ball = new Ball(ballTex, runTexture, new Vector2(tileSize * i, tileSize * j));
+                        player = new Player(ballTex, runTexture, new Vector2(tileSize * i, tileSize * j));
                     }
                     if (strings[j][i] == 'e')
                     {
                         tiles[i, j] = new Tile(floorTileTex, new Vector2(tileSize * j, tileSize * i), false);
                         
                         enemy = new Enemy(enemyTex, new Vector2(tileSize * i, tileSize * j));
-                        //enemy = new Enemy((enemyTex, position, velocity), false);
+                        enemyList.Add(enemy);
                     }
-                    
+                    if (strings[j][i] == 'p')
+                    {
+                        tiles[i, j] = new Tile(princessTex, new Vector2(tileSize * j, tileSize * i), false);
+                    }
+
                 }
             }
         }
@@ -160,11 +164,17 @@ namespace Övningar4
                 case GameState.Play:
                     //timer--;
                     {
-                        ball.Update(gameTime);
-                        foreach (Enemy e in enemyList)
+                        player.Update(gameTime);
+                        foreach (Enemy enemy in enemyList)
                         {
-                            e.Update(gameTime);
+                            enemy.Update(gameTime);
+                            if (player.boundingBox.Contains(enemy.enemyRec.X, enemy.enemyRec.Y))
+                            {
+                                lives--;
+                            }
                         }
+
+                        
                     }
 
                     break;
@@ -229,28 +239,31 @@ namespace Övningar4
                     }
                 } 
             }
+            foreach (Enemy enemy in enemyList)
+            {
+                enemy.Draw(spriteBatch);
+            }
 
-            //for (int i = 0; i < strings.Count; i++)
-            //{
-            //    for (int j = 0; j < strings[i].Length; j++)
-            //    {
-            //        if (strings[i][j] == 'e')
-            //        {
-            //            enemy.Draw(spriteBatch);
-            //        }
-            //    }
-            //}
-            
-            //enemy.Draw(spriteBatch);
-            ball.Draw(spriteBatch);
+            player.Draw(spriteBatch);
             spriteBatch.End();
 
             base.Draw(gameTime);
         }
+        
+
+
         public static bool GetTileAtPosition(Vector2 vec)
         {
             return tiles[(int)vec.X / tileSize, (int)vec.Y / tileSize].wall;
         }
+        //public static bool GetLadderAtPosition(Vector2 ladderVec)
+        //{
+        //    return tiles[(int)ladderVec.X / 64, (int)ladderVec.Y / 64].ladder;
+        //}
+        //public static bool GetLadderAtPositionInvisible(Vector2 ladderVec)
+        //{
+        //    return tiles[(int)ladderVec.X / 64, (int)ladderVec.Y / 64].invisible;
+        //}
         //public void UpdateEnemy()
         //{
         //    foreach (Enemy e in enemyList)
